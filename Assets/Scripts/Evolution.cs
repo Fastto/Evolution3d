@@ -7,38 +7,30 @@ public class Evolution : Singleton<Evolution>
     public GameObject cellPrefab;
     public GameObject foodPrefab;
 
-    private List<Genom> leaderBoard;
-    private int leaderBoardSize;
 
-    private float timeToNewFood;
+    private List<Genom> leaderBoard = new List<Genom>();
     private float noFoodTime;
 
-    private int minCellQty;
 
-    private int foodQtyInNewGeneration;
-    private int cellQtyInNewGeneration;
-    private int newFoodQtyToGenerateDuringGeneration;
+    private int leaderBoardSize = 10;
+
+    public float timeToNewFood = .2f;
+
+    public int newFoodQtyToGenerateDuringGeneration = 1;
+
+    public int minCellQty = 0;
+
+    public int foodQtyInNewGeneration = 10;
+    public int cellQtyInNewGeneration = 10;
+
+    private int worldSize = 50;
+
 
     protected Evolution() { }
 
-    private void Awake()
-    {
-        leaderBoard = new List<Genom>();
-        noFoodTime = 0f;
-
-        minCellQty = 1;
-
-        leaderBoardSize = 10;
-
-        foodQtyInNewGeneration = 10;
-        cellQtyInNewGeneration = 10;
-
-        timeToNewFood = .2f;
-        newFoodQtyToGenerateDuringGeneration = 1;
-    }
-
     void Start()
     {
+        noFoodTime = 0f;
         newGeneration();
     }
 
@@ -76,7 +68,7 @@ public class Evolution : Singleton<Evolution>
         string leadersStatistics = "";
         foreach (Genom genom in leaderBoard)
         {
-            leadersStatistics += genom.score + " ";
+            leadersStatistics += genom.getScore() + " ";
         }
 
         return leadersStatistics;
@@ -94,7 +86,7 @@ public class Evolution : Singleton<Evolution>
         for (int i = 0; i < qty; i++)
         {
             GameObject newFood = Instantiate(foodPrefab);
-            Vector3 newPosition = new Vector3(Random.value * 30 - 15, .5f, Random.value * 30 - 15);
+            Vector3 newPosition = new Vector3(Random.value * worldSize - worldSize/2, .5f, Random.value * worldSize - worldSize / 2);
             newFood.transform.SetPositionAndRotation(newPosition, Quaternion.identity);
         }
 
@@ -114,30 +106,31 @@ public class Evolution : Singleton<Evolution>
     }
 
     public void publishToLeaderBoard(Cell cell) {
-        if (!leaderBoard.Contains(cell.genome))
+        if (!leaderBoard.Contains(cell.getGenom()))
         {
             if (leaderBoard.Count < leaderBoardSize)
             {
-                leaderBoard.Add(cell.genome);
+                leaderBoard.Add(cell.getGenom());
             }
-            else if (leaderBoard[leaderBoard.Count - 1].score < cell.genome.score)
+            else if (leaderBoard[leaderBoard.Count - 1].getScore() < cell.getGenom().getScore())
             {
-                leaderBoard[leaderBoard.Count - 1] = cell.genome;
+                leaderBoard[leaderBoard.Count - 1] = cell.getGenom();
             }
         }
 
-        leaderBoard.Sort((x, y) => y.score.CompareTo(x.score));
+        leaderBoard.Sort((x, y) => y.getScore().CompareTo(x.getScore()));
     }
 
-    public void cellWantChild(Cell cell) {
-        generateCell(cell.genome);
+    public void cellDivides(Cell cell) {
+        cell.divide();
+        generateCell(cell.getGenom(), true);
     }
 
     private void generateNewAgeCell() {
         Genom genom;
         if (leaderBoard != null && leaderBoard.Count > 0)
         {
-            genom = leaderBoard[Random.Range(0, leaderBoard.Count - 1)];
+            genom = leaderBoard[Random.Range(0, leaderBoard.Count)];
         }
         else
         {
@@ -146,25 +139,27 @@ public class Evolution : Singleton<Evolution>
         generateCell(genom);
     }
 
-    private void generateCell(Genom genom) {
+    private void generateCell(Genom genom, bool mutationOnly = false) {
         GameObject newCell = Instantiate(cellPrefab);
         
         if (genom != null)
         {
             Cell nc = newCell.GetComponent<Cell>();
-            Debug.Log(nc.genome);
-            nc.genome = genom.clone();
-            if (Random.value > 0.5)
+
+            Genom g = genom.clone();
+            if (mutationOnly || Random.value > 0.5)
             {
-                nc.genome.neuralNetwork.mutate(0.2, 1);
+                nc.getGenom().mutate();
             }
             else if(leaderBoard.Count > 1)
             {
-                nc.genome.neuralNetwork.crossWith(leaderBoard[Random.Range(0, leaderBoard.Count - 1)].neuralNetwork);
+                nc.getGenom().crossWith(leaderBoard[Random.Range(0, leaderBoard.Count)]);
             }
+
+            nc.setGenom(g);
         }
        
-        Vector3 newPosition = new Vector3(Random.value * 40 - 20, 1, Random.value * 40 - 20);
+        Vector3 newPosition = new Vector3(Random.value * worldSize - worldSize / 2, 1, Random.value * worldSize - worldSize / 2);
         newCell.transform.SetPositionAndRotation(newPosition, Quaternion.identity);
     }
 
